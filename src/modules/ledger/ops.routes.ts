@@ -4,6 +4,7 @@ import { requireAuth } from '../../middlewares/auth.js';
 import { idempotencyMiddleware } from '../../middlewares/idempotency.js';
 import { validateBody } from '../../middlewares/validate.js';
 import { Errors } from '../../utils/errors.js';
+import { parseOperationText } from '../parser/parser.engine.js';
 import {
   createOperation,
   createOpSchema,
@@ -12,10 +13,22 @@ import {
 } from './ops.service.js';
 
 const uuidSchema = z.string().uuid('Invalid operation ID');
+const parseSchema = z.object({
+  text: z.string().trim().min(1, 'Text is required').max(1000),
+});
 
 export const opsRouter = Router();
 
 opsRouter.use(requireAuth);
+
+opsRouter.post('/parse', validateBody(parseSchema), async (req, res, next) => {
+  try {
+    const parsed = await parseOperationText(req.body.text);
+    res.json(parsed);
+  } catch (err) {
+    next(err);
+  }
+});
 
 opsRouter.post('/', idempotencyMiddleware, validateBody(createOpSchema), async (req, res, next) => {
   try {
