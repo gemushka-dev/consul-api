@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middlewares/auth.js';
 import { validateBody } from '../../middlewares/validate.js';
 import { clearAuthCookies } from '../auth/auth.service.js';
+import { exportUserOpsCsv } from '../reports/reports.service.js';
 import { consentSchema, patchMeSchema, putBusinessSchema } from './user.schemas.js';
 import {
   deleteUserAccount,
@@ -75,6 +76,17 @@ userRouter.delete('/consent/stats', async (req, res, next) => {
   try {
     const user = await setStatsConsent(req.user!.id, false);
     res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+userRouter.get('/export.csv', async (req, res, next) => {
+  try {
+    const csv = await exportUserOpsCsv(req.user!.id);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="consul-my-operations.csv"');
+    res.send(csv);
   } catch (err) {
     next(err);
   }

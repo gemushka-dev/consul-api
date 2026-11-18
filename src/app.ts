@@ -16,6 +16,11 @@ import {
 } from './modules/ledger/ledger.routes.js';
 import { opsRouter } from './modules/ledger/ops.routes.js';
 import { palataRouter } from './modules/palata/palata.routes.js';
+import {
+  advisorRouter,
+  forecastRouter,
+  reportsRouter,
+} from './modules/reports/reports.routes.js';
 import { userRouter } from './modules/user/user.routes.js';
 import { visionRouter } from './modules/vision/vision.routes.js';
 import { voiceRouter } from './modules/voice/voice.routes.js';
@@ -67,6 +72,9 @@ export function createApp(): express.Express {
   apiV1.use('/voice', voiceRouter);
   apiV1.use('/photo', visionRouter);
   apiV1.use('/palata', palataRouter);
+  apiV1.use('/reports', reportsRouter);
+  apiV1.use('/forecast', forecastRouter);
+  apiV1.use('/advisor', advisorRouter);
   apiV1.use('/chats', chatsRouter);
   apiV1.use('/memory', memoryRouter);
 
