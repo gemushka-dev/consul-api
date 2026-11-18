@@ -1,0 +1,61 @@
+{
+  "year": 2026,
+  "currency": "UZS",
+  "brv": 412000,
+  "thresholds": {
+    "self_employed_zero_annual": 100000000,
+    "turnover_1pct_annual": 1000000000,
+    "vat_mandatory_brv": 12000,
+    "vat_mandatory_annual": 4944000000
+  },
+  "rates": {
+    "self_employed_under_100m": 0.0,
+    "turnover_under_1b": 0.01,
+    "turnover_over_1b": 0.04,
+    "vat_reduced": 0.06,
+    "vat_standard": 0.12,
+    "profit_tax_standard": 0.15,
+    "social_tax_yatt_monthly_brv": 1
+  },
+  "regimes": [
+    {
+      "code": "oob_zero",
+      "name_uz": "O'zini o'zi band qilgan (100 mln gacha)",
+      "name_ru": "Самозанятый (до 100 млн сум/год)",
+      "rate_pct": 0,
+      "max_annual_turnover": 100000000
+    },
+    {
+      "code": "turnover_1",
+      "name_uz": "Aylanmadan soliq 1% (1 mlrd gacha)",
+      "name_ru": "Налог с оборота 1% (ИП / самозанятый до 1 млрд сум/год)",
+      "rate_pct": 1,
+      "max_annual_turnover": 1000000000
+    },
+    {
+      "code": "turnover_4",
+      "name_uz": "Aylanmadan soliq 4% (1 mlrd dan yuqori)",
+      "name_ru": "Налог с оборота 4% (свыше 1 млрд сум/год)",
+      "rate_pct": 4,
+      "max_annual_turnover": 4944000000
+    },
+    {
+      "code": "vat12",
+      "name_uz": "Umumiy tartib (QQS 12% + foyda solig'i 15%)",
+      "name_ru": "Общий режим (НДС 12% + налог на прибыль 15%)",
+      "rate_pct": 12,
+      "profit_tax_pct": 15,
+      "min_annual_turnover": 4944000000
+    }
+  ],
+  "sources": [
+    {
+      "title": "Налоговый кодекс Республики Узбекистан (Lex.uz)",
+      "url": "https://lex.uz/docs/4674902"
+    },
+    {
+      "title": "Налоговый комитет Республики Узбекистан (Soliq.uz)",
+      "url": "https://soliq.uz"
+    }
+  ]
+}
