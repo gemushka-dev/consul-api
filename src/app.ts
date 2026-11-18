@@ -8,6 +8,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { langMiddleware } from './middlewares/lang.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { calculatorRouter } from './modules/calculators/calculators.routes.js';
+import { chatsRouter, consulRouter, memoryRouter } from './modules/consul/consul.routes.js';
 import {
   debtorsRouter,
   ledgerRouter,
@@ -59,6 +60,9 @@ export function createApp(): express.Express {
   apiV1.use('/debtors', debtorsRouter);
   apiV1.use('/obligations', obligationsRouter);
   apiV1.use('/calculator', calculatorRouter);
+  apiV1.use('/consul', consulRouter);
+  apiV1.use('/chats', chatsRouter);
+  apiV1.use('/memory', memoryRouter);
 
   app.use('/api/docs', docsRouter);
   app.use('/api/v1', apiV1);
