@@ -115,3 +115,4 @@ export function createApp(): express.Express {
 }
 
 export const app = createApp();
+export default app;
