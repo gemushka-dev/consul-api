@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { env } from './config/env.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { langMiddleware } from './middlewares/lang.js';
+import { healthRouter } from './routes/health.js';
 import { Errors } from './utils/errors.js';
 
 export function createApp(): express.Express {
@@ -40,7 +41,10 @@ export function createApp(): express.Express {
     });
   });
 
+  apiV1.use(healthRouter);
+
   app.use('/api/v1', apiV1);
+  app.use(healthRouter);
 
   app.use((_req, _res, next) => {
     next(Errors.notFound('route_not_found', 'Endpoint not found'));
