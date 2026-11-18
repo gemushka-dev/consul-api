@@ -7,6 +7,7 @@ import { docsRouter } from './docs/swagger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { langMiddleware } from './middlewares/lang.js';
 import { authRouter } from './modules/auth/auth.routes.js';
+import { userRouter } from './modules/user/user.routes.js';
 import { healthRouter } from './routes/health.js';
 import { Errors } from './utils/errors.js';
 
@@ -45,6 +46,7 @@ export function createApp(): express.Express {
 
   apiV1.use(healthRouter);
   apiV1.use('/auth', authRouter);
+  apiV1.use('/me', userRouter);
 
   app.use('/api/docs', docsRouter);
   app.use('/api/v1', apiV1);
