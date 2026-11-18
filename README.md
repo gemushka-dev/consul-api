@@ -13,7 +13,7 @@
   - Blacklist отозванных `refresh_token`
   - Кэш идемпотентности `Idempotency-Key` (`idem:${userId}:${key}`, TTL 24 ч)
   - Кэш TTS-аудио (`tts:${sha256}`, TTL 24 ч)
-- **AI & Media:** OpenAI SDK (совместим с DeepSeek / Kimi), VoiceLab STT/TTS, `multer` (`memoryStorage`)
+- **AI & Media:** Moonshot **Kimi K3** (`https://api.moonshot.ai/v1`, OpenAI SDK, мультимодальный vision + tool calling с поддержкой `reasoning_content` и режимов `AI_THINKING`), VoiceLab STT/TTS, `multer` (`memoryStorage`)
 - **Docs:** OpenAPI 3.0.3 (`src/docs/openapi.yaml`) + Swagger UI на `/api/docs`
 
 ## Быстрый старт

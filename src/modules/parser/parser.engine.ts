@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { createAiClient, getModelChatOptions, hasAiApiKey } from '../../config/ai.js';
 import { env } from '../../config/env.js';
 
 export type ParsedIntentType =
@@ -360,31 +360,29 @@ export function parseOperationDeterministic(rawText: string): ParseResult {
  */
 export async function parseOperationText(rawText: string): Promise<ParseResult> {
   const deterministic = parseOperationDeterministic(rawText);
-  if (deterministic.intent !== 'unknown' || !env.AI_API_KEY) {
+  if (deterministic.intent !== 'unknown' || !hasAiApiKey()) {
     return deterministic;
   }
 
   try {
-    const client = new OpenAI({
-      apiKey: env.AI_API_KEY,
-      baseURL: env.AI_BASE_URL,
-      timeout: 5000,
-    });
+    const client = createAiClient(5000);
+    // Force thinking disabled on Kimi for fast single-shot extraction
+    const modelOpts = getModelChatOptions(env.AI_MODEL, 'disabled', 0);
 
-    const completion = await client.chat.completions.create({
+    const requestPayload = {
       model: env.AI_MODEL,
-      temperature: 0,
+      ...modelOpts,
       messages: [
         {
-          role: 'system',
+          role: 'system' as const,
           content:
             'Extract a single business financial operation from Uzbek or Russian merchant text. Never invent numbers.',
         },
-        { role: 'user', content: rawText },
+        { role: 'user' as const, content: rawText },
       ],
       tools: [
         {
-          type: 'function',
+          type: 'function' as const,
           function: {
             name: 'extract_operation',
             description: 'Extract structured operation intent from merchant utterance',
@@ -409,8 +407,12 @@ export async function parseOperationText(rawText: string): Promise<ParseResult> 
           },
         },
       ],
-      tool_choice: { type: 'function', function: { name: 'extract_operation' } },
-    });
+      tool_choice: { type: 'function' as const, function: { name: 'extract_operation' } },
+    };
+
+    const completion = await client.chat.completions.create(
+      requestPayload as Parameters<typeof client.chat.completions.create>[0] & { stream?: false },
+    );
 
     const toolCall = completion.choices[0]?.message?.tool_calls?.[0];
     if (!toolCall || toolCall.type !== 'function') return deterministic;

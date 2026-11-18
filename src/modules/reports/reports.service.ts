@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull } from 'drizzle-orm';
-import OpenAI from 'openai';
+import { createAiClient, getModelChatOptions, hasAiApiKey } from '../../config/ai.js';
 import { getDb } from '../../config/db.js';
 import { env } from '../../config/env.js';
 import { businesses, businessPlans, ops } from '../../db/schema.js';
@@ -264,27 +264,27 @@ export async function generateBusinessPlan(params: {
   let tokensIn = 0;
   let tokensOut = 0;
 
-  if (env.AI_API_KEY) {
+  if (hasAiApiKey()) {
     try {
-      const client = new OpenAI({
-        apiKey: env.AI_API_KEY,
-        baseURL: env.AI_BASE_URL,
-        timeout: 12_000,
-      });
-      const completion = await client.chat.completions.create({
+      const client = createAiClient(12_000);
+      const modelOpts = getModelChatOptions(env.AI_MODEL, env.AI_THINKING, 0.3);
+      const requestPayload = {
         model: env.AI_MODEL,
-        temperature: 0.3,
+        ...modelOpts,
         messages: [
           {
-            role: 'system',
+            role: 'system' as const,
             content: `Write a concise, practical business plan in ${params.lang} using ONLY the exact numbers provided in the JSON context.`,
           },
           {
-            role: 'user',
+            role: 'user' as const,
             content: JSON.stringify(structured),
           },
         ],
-      });
+      };
+      const completion = await client.chat.completions.create(
+        requestPayload as Parameters<typeof client.chat.completions.create>[0] & { stream?: false },
+      );
       const llmText = completion.choices[0]?.message?.content?.trim();
       if (llmText) {
         content = llmText;

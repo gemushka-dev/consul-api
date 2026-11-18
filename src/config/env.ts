@@ -36,11 +36,14 @@ const envSchema = z.object({
     : z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 characters'),
   DEMO_OTP: z.string().regex(/^\d{6}$/, 'DEMO_OTP must be 6 digits').default('123456'),
 
-  // AI & VoiceLab
+  // AI (Kimi K3 / Moonshot OpenAI-compatible) & VoiceLab
   AI_API_KEY: z.string().default(''),
-  AI_BASE_URL: z.string().url().default('https://api.deepseek.com/v1'),
-  AI_MODEL: z.string().default('deepseek-chat'),
-  AI_VISION_MODEL: z.string().default('gpt-4o-mini'),
+  MOONSHOT_API_KEY: z.string().default(''),
+  AI_BASE_URL: z.string().url().default('https://api.moonshot.ai/v1'),
+  AI_MODEL: z.string().default('kimi-k3'),
+  AI_VISION_MODEL: z.string().default('kimi-k3'),
+  AI_THINKING: z.enum(['disabled', 'enabled', 'auto']).default('disabled'),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(8000),
   AI_DAILY_LIMIT: z.coerce.number().int().positive().default(50),
   VOICELAB_API_KEY: z.string().default(''),
   VOICELAB_BASE_URL: z.string().url().default('https://api.voicelab.uz/v1'),
@@ -56,7 +59,11 @@ function parseEnv(): Env {
       .join('; ');
     throw new Error(`Invalid environment configuration: ${details}`);
   }
-  return parsed.data;
+  const data = parsed.data;
+  if (!data.AI_API_KEY && data.MOONSHOT_API_KEY) {
+    data.AI_API_KEY = data.MOONSHOT_API_KEY;
+  }
+  return data;
 }
 
 export const env: Env = parseEnv();

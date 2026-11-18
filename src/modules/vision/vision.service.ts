@@ -1,5 +1,10 @@
-import OpenAI from 'openai';
 import { z } from 'zod';
+import {
+  createAiClient,
+  getModelChatOptions,
+  hasAiApiKey,
+  stripJsonCodeFences,
+} from '../../config/ai.js';
 import { env } from '../../config/env.js';
 import type { OpLineItem } from '../../db/schema.js';
 import type { SupportedLang } from '../../types/express.d.js';
@@ -56,7 +61,7 @@ export async function recognizeDocumentPhoto(params: {
   mimetype: string;
   lang: SupportedLang;
 }): Promise<PhotoRecognitionResult> {
-  if (!env.AI_API_KEY) {
+  if (!hasAiApiKey()) {
     if (env.APP_ENV === 'demo') {
       return {
         document_type: 'invoice',
@@ -89,21 +94,18 @@ export async function recognizeDocumentPhoto(params: {
     throw Errors.serviceUnavailable('vision_not_configured', 'Vision AI API key is not configured');
   }
 
-  const client = new OpenAI({
-    apiKey: env.AI_API_KEY,
-    baseURL: env.AI_BASE_URL,
-    timeout: 15_000,
-  });
+  const client = createAiClient(15_000);
+  const modelOpts = getModelChatOptions(env.AI_VISION_MODEL, 'disabled', 0);
 
   const dataUri = `data:${params.mimetype};base64,${params.buffer.toString('base64')}`;
 
-  const completion = await client.chat.completions.create({
+  const requestPayload = {
     model: env.AI_VISION_MODEL,
-    temperature: 0,
-    response_format: { type: 'json_object' },
+    ...modelOpts,
+    response_format: { type: 'json_object' as const },
     messages: [
       {
-        role: 'system',
+        role: 'system' as const,
         content: `You are a receipt/invoice OCR parser for Uzbekistan small businesses.
 Extract structured financial operation drafts strictly as JSON:
 {
@@ -124,16 +126,20 @@ Extract structured financial operation drafts strictly as JSON:
 All amounts must be integer UZS. Never invent items not visible on the image.`,
       },
       {
-        role: 'user',
+        role: 'user' as const,
         content: [
-          { type: 'text', text: `Parse this receipt/invoice into draft_ops[] (language: ${params.lang}).` },
-          { type: 'image_url', image_url: { url: dataUri } },
+          { type: 'text' as const, text: `Parse this receipt/invoice into draft_ops[] (language: ${params.lang}).` },
+          { type: 'image_url' as const, image_url: { url: dataUri } },
         ],
       },
     ],
-  });
+  };
 
-  const raw = completion.choices[0]?.message?.content ?? '{}';
+  const completion = await client.chat.completions.create(
+    requestPayload as Parameters<typeof client.chat.completions.create>[0] & { stream?: false },
+  );
+
+  const raw = stripJsonCodeFences(completion.choices[0]?.message?.content ?? '{}');
   let parsedJson: unknown = {};
   try {
     parsedJson = JSON.parse(raw);

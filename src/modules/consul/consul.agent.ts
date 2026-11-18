@@ -1,5 +1,11 @@
-import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import {
+  buildAssistantToolCallMessage,
+  createAiClient,
+  getModelChatOptions,
+  hasAiApiKey,
+  stripJsonCodeFences,
+} from '../../config/ai.js';
 import { env } from '../../config/env.js';
 import { redis } from '../../config/redis.js';
 import type { SupportedLang } from '../../types/express.d.js';
@@ -17,7 +23,6 @@ import {
 import { verifyNumbers, type ConsulReplyCard } from './verifyNumbers.js';
 
 const MAX_AGENT_STEPS = 8;
-const LLM_TIMEOUT_MS = 8000;
 
 export interface ConsulAgentInput {
   userId: string;
@@ -65,10 +70,10 @@ async function enforceDailyAiLimit(userId: string): Promise<void> {
 }
 
 function tryParseStructuredReply(raw: string): { text: string; card: ConsulReplyCard | null } {
-  const trimmed = raw.trim();
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+  const cleaned = stripJsonCodeFences(raw);
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
     try {
-      const parsed = JSON.parse(trimmed) as { text?: string; card?: ConsulReplyCard | null };
+      const parsed = JSON.parse(cleaned) as { text?: string; card?: ConsulReplyCard | null };
       if (typeof parsed.text === 'string' && parsed.text.length > 0) {
         return { text: parsed.text, card: parsed.card ?? null };
       }
@@ -76,7 +81,7 @@ function tryParseStructuredReply(raw: string): { text: string; card: ConsulReply
       // Fall through to plain text
     }
   }
-  return { text: trimmed, card: null };
+  return { text: raw.trim(), card: null };
 }
 
 function unmaskCard(card: ConsulReplyCard | null, maskMap: Map<string, string>): ConsulReplyCard | null {
@@ -107,7 +112,7 @@ export async function runConsulAgent(input: ConsulAgentInput): Promise<ConsulAge
   await enforceDailyAiLimit(input.userId);
 
   // If no AI API key is configured, immediately run deterministic grounded fallback
-  if (!env.AI_API_KEY) {
+  if (!hasAiApiKey()) {
     const fb = await buildDeterministicFallback({
       userId: input.userId,
       text: input.text,
@@ -142,11 +147,8 @@ export async function runConsulAgent(input: ConsulAgentInput): Promise<ConsulAge
   let tokensOut = 0;
 
   try {
-    const client = new OpenAI({
-      apiKey: env.AI_API_KEY,
-      baseURL: env.AI_BASE_URL,
-      timeout: LLM_TIMEOUT_MS,
-    });
+    const client = createAiClient(env.AI_TIMEOUT_MS);
+    const modelOpts = getModelChatOptions(env.AI_MODEL, env.AI_THINKING, 0.2);
 
     const messages: ChatCompletionMessageParam[] = [
       {
@@ -163,13 +165,16 @@ export async function runConsulAgent(input: ConsulAgentInput): Promise<ConsulAge
     let finalContent = '';
 
     for (let step = 0; step < MAX_AGENT_STEPS; step++) {
-      const completion = await client.chat.completions.create({
+      const requestPayload = {
         model: env.AI_MODEL,
-        temperature: 0.2,
+        ...modelOpts,
         messages,
         tools: CONSUL_TOOLS_SCHEMA,
-        tool_choice: 'auto',
-      });
+        tool_choice: 'auto' as const,
+      };
+      const completion = await client.chat.completions.create(
+        requestPayload as Parameters<typeof client.chat.completions.create>[0] & { stream?: false },
+      );
 
       tokensIn += completion.usage?.prompt_tokens ?? 0;
       tokensOut += completion.usage?.completion_tokens ?? 0;
@@ -178,11 +183,7 @@ export async function runConsulAgent(input: ConsulAgentInput): Promise<ConsulAge
       if (!msg) break;
 
       if (msg.tool_calls && msg.tool_calls.length > 0) {
-        messages.push({
-          role: 'assistant',
-          content: msg.content ?? '',
-          tool_calls: msg.tool_calls,
-        });
+        messages.push(buildAssistantToolCallMessage(msg));
 
         for (const tc of msg.tool_calls) {
           if (tc.type !== 'function') continue;
