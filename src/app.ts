@@ -8,6 +8,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { langMiddleware } from './middlewares/lang.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { calculatorRouter } from './modules/calculators/calculators.routes.js';
+import { opsRouter } from './modules/ledger/ops.routes.js';
 import { userRouter } from './modules/user/user.routes.js';
 import { healthRouter } from './routes/health.js';
 import { Errors } from './utils/errors.js';
@@ -48,6 +49,7 @@ export function createApp(): express.Express {
   apiV1.use(healthRouter);
   apiV1.use('/auth', authRouter);
   apiV1.use('/me', userRouter);
+  apiV1.use('/ops', opsRouter);
   apiV1.use('/calculator', calculatorRouter);
 
   app.use('/api/docs', docsRouter);
