@@ -55,6 +55,12 @@ export function issueAuthTokens(user: UserRow): {
   refreshToken: string;
   jti: string;
 } {
+  if (env.JWT_ACCESS_SECRET.length < 16 || env.JWT_REFRESH_SECRET.length < 16) {
+    throw Errors.serviceUnavailable(
+      'jwt_not_configured',
+      'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET (min 16 chars) must be configured',
+    );
+  }
   const accessPayload: AccessTokenPayload = {
     sub: user.id,
     role: user.role as UserRole,

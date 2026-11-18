@@ -10,6 +10,9 @@ let _db: DbInstance | null = null;
 let _rawExec: ((query: string) => Promise<void>) | null = null;
 
 function createNeonDb(): DbInstance {
+  if (!env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is not configured');
+  }
   const client = neon(env.DATABASE_URL);
   return drizzleNeon({ client, schema });
 }

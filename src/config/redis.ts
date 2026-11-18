@@ -154,10 +154,25 @@ class UpstashCacheClient implements CacheClient {
   }
 }
 
+class UnconfiguredCacheClient implements CacheClient {
+  private fail(): never {
+    throw new Error('Upstash Redis is not configured (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN)');
+  }
+  async get<T = string>(): Promise<T | null> { return this.fail(); }
+  async set(): Promise<void> { return this.fail(); }
+  async del(): Promise<void> { return this.fail(); }
+  async incr(): Promise<number> { return this.fail(); }
+  async expire(): Promise<void> { return this.fail(); }
+  async ping(): Promise<string> { return this.fail(); }
+  async limitOtp(): Promise<RateLimitResult> { return this.fail(); }
+}
+
 export const redis: CacheClient =
   env.NODE_ENV === 'test' || env.UPSTASH_REDIS_REST_URL === 'memory://upstash'
     ? new MemoryCacheClient()
-    : new UpstashCacheClient(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
+    : env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
+      ? new UpstashCacheClient(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN)
+      : new UnconfiguredCacheClient();
 
 export async function checkRedisReady(): Promise<boolean> {
   try {

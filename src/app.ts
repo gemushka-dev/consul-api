@@ -91,6 +91,16 @@ export function createApp(): express.Express {
   apiV1.use('/chats', chatsRouter);
   apiV1.use('/memory', memoryRouter);
 
+  app.get('/', (_req, res) => {
+    res.json({
+      name: 'Consul API',
+      version: '2.0.0',
+      docs: '/api/docs',
+      health: '/api/v1/healthz',
+      ready: '/api/v1/readyz',
+    });
+  });
+
   app.use('/api/docs', docsRouter);
   app.use('/api/v1', apiV1);
   app.use(healthRouter);

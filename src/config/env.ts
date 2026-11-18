@@ -2,9 +2,78 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 
 const isTest = process.env.NODE_ENV === 'test';
+const isVercel = Boolean(process.env.VERCEL);
+
 if (!isTest) {
   dotenv.config();
 }
+
+function clean(val: string | undefined): string | undefined {
+  if (val === undefined) return undefined;
+  const trimmed = val.trim().replace(/^["']|["']$/g, '').trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function ensureUrl(val: string | undefined): string | undefined {
+  const c = clean(val);
+  if (!c) return undefined;
+  if (/^https?:\/\//i.test(c) || c.startsWith('memory://')) return c;
+  return `https://${c}`;
+}
+
+function normalizeVercelEnv(raw: NodeJS.ProcessEnv): Record<string, string | undefined> {
+  const databaseUrl =
+    clean(raw.DATABASE_URL) ||
+    clean(raw.POSTGRES_URL) ||
+    clean(raw.POSTGRES_PRISMA_URL) ||
+    clean(raw.POSTGRES_URL_NON_POOLING);
+
+  const directUrl =
+    clean(raw.DIRECT_URL) ||
+    clean(raw.DATABASE_URL_UNPOOLED) ||
+    clean(raw.POSTGRES_URL_NON_POOLING) ||
+    databaseUrl;
+
+  const upstashUrl =
+    ensureUrl(raw.UPSTASH_REDIS_REST_URL) ||
+    ensureUrl(raw.KV_REST_API_URL);
+
+  const upstashToken =
+    clean(raw.UPSTASH_REDIS_REST_TOKEN) ||
+    clean(raw.KV_REST_API_TOKEN);
+
+  const frontendUrl =
+    ensureUrl(raw.FRONTEND_URL) ||
+    (clean(raw.VERCEL_URL) ? `https://${clean(raw.VERCEL_URL)}` : undefined);
+
+  const aiApiKey = clean(raw.AI_API_KEY) || clean(raw.MOONSHOT_API_KEY);
+
+  return {
+    NODE_ENV: clean(raw.NODE_ENV),
+    APP_ENV: clean(raw.APP_ENV),
+    PORT: clean(raw.PORT),
+    FRONTEND_URL: frontendUrl,
+    DATABASE_URL: databaseUrl,
+    DIRECT_URL: directUrl,
+    UPSTASH_REDIS_REST_URL: upstashUrl,
+    UPSTASH_REDIS_REST_TOKEN: upstashToken,
+    JWT_ACCESS_SECRET: clean(raw.JWT_ACCESS_SECRET),
+    JWT_REFRESH_SECRET: clean(raw.JWT_REFRESH_SECRET),
+    DEMO_OTP: clean(raw.DEMO_OTP),
+    AI_API_KEY: aiApiKey,
+    MOONSHOT_API_KEY: clean(raw.MOONSHOT_API_KEY),
+    AI_BASE_URL: ensureUrl(raw.AI_BASE_URL),
+    AI_MODEL: clean(raw.AI_MODEL),
+    AI_VISION_MODEL: clean(raw.AI_VISION_MODEL),
+    AI_THINKING: clean(raw.AI_THINKING),
+    AI_TIMEOUT_MS: clean(raw.AI_TIMEOUT_MS),
+    AI_DAILY_LIMIT: clean(raw.AI_DAILY_LIMIT),
+    VOICELAB_API_KEY: clean(raw.VOICELAB_API_KEY),
+    VOICELAB_BASE_URL: ensureUrl(raw.VOICELAB_BASE_URL),
+  };
+}
+
+const relaxed = isTest || isVercel;
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -13,28 +82,32 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
 
   // Vercel Neon (PostgreSQL)
-  DATABASE_URL: isTest
-    ? z.string().default('pglite://memory')
+  DATABASE_URL: relaxed
+    ? z.string().default(isTest ? 'pglite://memory' : '')
     : z.string().min(1, 'DATABASE_URL is required'),
-  DIRECT_URL: isTest
-    ? z.string().default('pglite://memory')
+  DIRECT_URL: relaxed
+    ? z.string().default(isTest ? 'pglite://memory' : '')
     : z.string().min(1, 'DIRECT_URL is required'),
 
   // Vercel Upstash (Redis REST API)
-  UPSTASH_REDIS_REST_URL: isTest
-    ? z.string().default('memory://upstash')
+  UPSTASH_REDIS_REST_URL: relaxed
+    ? z.string().default(isTest ? 'memory://upstash' : '')
     : z.string().url('UPSTASH_REDIS_REST_URL must be a valid URL'),
-  UPSTASH_REDIS_REST_TOKEN: isTest
-    ? z.string().default('test-redis-token')
+  UPSTASH_REDIS_REST_TOKEN: relaxed
+    ? z.string().default(isTest ? 'test-redis-token' : '')
     : z.string().min(1, 'UPSTASH_REDIS_REST_TOKEN is required'),
 
   // Auth & Demo
   JWT_ACCESS_SECRET: isTest
     ? z.string().min(16).default('test-jwt-access-secret-key-min-32-chars')
-    : z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 characters'),
+    : isVercel
+      ? z.string().default('')
+      : z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 characters'),
   JWT_REFRESH_SECRET: isTest
     ? z.string().min(16).default('test-jwt-refresh-secret-key-min-32-chars')
-    : z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 characters'),
+    : isVercel
+      ? z.string().default('')
+      : z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 characters'),
   DEMO_OTP: z.string().regex(/^\d{6}$/, 'DEMO_OTP must be 6 digits').default('123456'),
 
   // AI (Kimi K3 / Moonshot OpenAI-compatible) & VoiceLab
@@ -52,29 +125,6 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-function normalizeVercelEnv(raw: NodeJS.ProcessEnv): Record<string, string | undefined> {
-  const databaseUrl = raw.DATABASE_URL || raw.POSTGRES_URL;
-  const directUrl =
-    raw.DIRECT_URL ||
-    raw.DATABASE_URL_UNPOOLED ||
-    raw.POSTGRES_URL_NON_POOLING ||
-    databaseUrl;
-  const upstashUrl = raw.UPSTASH_REDIS_REST_URL || raw.KV_REST_API_URL;
-  const upstashToken = raw.UPSTASH_REDIS_REST_TOKEN || raw.KV_REST_API_TOKEN;
-  const frontendUrl =
-    raw.FRONTEND_URL ||
-    (raw.VERCEL_URL ? `https://${raw.VERCEL_URL}` : undefined);
-
-  return {
-    ...raw,
-    ...(databaseUrl ? { DATABASE_URL: databaseUrl } : {}),
-    ...(directUrl ? { DIRECT_URL: directUrl } : {}),
-    ...(upstashUrl ? { UPSTASH_REDIS_REST_URL: upstashUrl } : {}),
-    ...(upstashToken ? { UPSTASH_REDIS_REST_TOKEN: upstashToken } : {}),
-    ...(frontendUrl ? { FRONTEND_URL: frontendUrl } : {}),
-  };
-}
-
 function parseEnv(): Env {
   const parsed = envSchema.safeParse(normalizeVercelEnv(process.env));
   if (!parsed.success) {
@@ -83,11 +133,18 @@ function parseEnv(): Env {
       .join('; ');
     throw new Error(`Invalid environment configuration: ${details}`);
   }
-  const data = parsed.data;
-  if (!data.AI_API_KEY && data.MOONSHOT_API_KEY) {
-    data.AI_API_KEY = data.MOONSHOT_API_KEY;
-  }
-  return data;
+  return parsed.data;
 }
 
 export const env: Env = parseEnv();
+
+export function getMissingRuntimeEnv(): string[] {
+  if (env.NODE_ENV === 'test') return [];
+  const missing: string[] = [];
+  if (!env.DATABASE_URL) missing.push('DATABASE_URL');
+  if (!env.UPSTASH_REDIS_REST_URL) missing.push('UPSTASH_REDIS_REST_URL');
+  if (!env.UPSTASH_REDIS_REST_TOKEN) missing.push('UPSTASH_REDIS_REST_TOKEN');
+  if (env.JWT_ACCESS_SECRET.length < 16) missing.push('JWT_ACCESS_SECRET (min 16 chars)');
+  if (env.JWT_REFRESH_SECRET.length < 16) missing.push('JWT_REFRESH_SECRET (min 16 chars)');
+  return missing;
+}
