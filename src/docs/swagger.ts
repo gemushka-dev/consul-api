@@ -6,7 +6,9 @@ import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const yamlPath = path.resolve(__dirname, 'openapi.yaml');
+const localYaml = path.resolve(__dirname, 'openapi.yaml');
+const srcYaml = path.resolve(__dirname, '../../src/docs/openapi.yaml');
+const yamlPath = fs.existsSync(localYaml) ? localYaml : srcYaml;
 
 const rawYaml = fs.readFileSync(yamlPath, 'utf-8');
 const openapiDoc = YAML.parse(rawYaml) as Record<string, unknown>;
