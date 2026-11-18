@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env.js';
+import { docsRouter } from './docs/swagger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { langMiddleware } from './middlewares/lang.js';
 import { healthRouter } from './routes/health.js';
@@ -43,6 +44,7 @@ export function createApp(): express.Express {
 
   apiV1.use(healthRouter);
 
+  app.use('/api/docs', docsRouter);
   app.use('/api/v1', apiV1);
   app.use(healthRouter);
 

@@ -1,0 +1,582 @@
+openapi: 3.0.3
+info:
+  title: Consul API
+  version: 2.0.0
+  description: >
+    Backend API for Consul (TypeScript + Express + Vercel Neon PostgreSQL + Upstash Redis).
+    All monetary values are integers in UZS (sum). Timestamps are ISO 8601; calendar boundaries use Asia/Tashkent (UTC+5).
+servers:
+  - url: /api/v1
+    description: API v1 base path
+tags:
+  - name: Health
+  - name: Auth
+  - name: User
+  - name: Ledger
+  - name: Calculators
+  - name: Consul AI
+  - name: Voice & Vision
+  - name: Palata
+  - name: Reports & P1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+  parameters:
+    LangParam:
+      name: lang
+      in: query
+      schema:
+        type: string
+        enum: [uz, ru, en]
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      schema:
+        type: string
+        maxLength: 100
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: amount_required
+            field:
+              type: string
+              example: amount
+            message:
+              type: string
+              example: Amount must be a positive integer
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        lang: { type: string, enum: [uz, ru, en] }
+        role: { type: string, enum: [user, chamber, admin] }
+        consent_at: { type: string, format: date-time, nullable: true }
+        consent_version: { type: string, nullable: true }
+        stats_consent_at: { type: string, format: date-time, nullable: true }
+        prefs:
+          type: object
+          properties:
+            largeFont: { type: boolean }
+            voiceReply: { type: boolean }
+            voiceSpeed: { type: number }
+        created_at: { type: string, format: date-time }
+    Business:
+      type: object
+      required: [trade, sector, market, status, regime, reserve]
+      properties:
+        trade: { type: string }
+        sector: { type: string, enum: [dried_fruit, food, clothes, services, other] }
+        market: { type: string, enum: [chorsu, oloy, parkent, quyliq, other] }
+        status: { type: string, enum: [yatt, oob, mchj, none] }
+        regime: { type: string, enum: [turnover, vat6, vat12] }
+        reserve: { type: integer, minimum: 0 }
+        updated_at: { type: string, format: date-time }
+    Operation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [sale, buy, exp, sup, nas, repaid, fix, opening] }
+        amount: { type: integer }
+        method: { type: string, enum: [naqd, karta, none] }
+        label: { type: string, nullable: true }
+        counterparty_id: { type: string, format: uuid, nullable: true }
+        fiscal: { type: boolean }
+        source: { type: string, enum: [text, voice, photo, manual, seed] }
+        raw_text: { type: string, nullable: true }
+        items: { type: array, items: { type: object }, nullable: true }
+        occurred_at: { type: string, format: date-time }
+    TodayView:
+      type: object
+      properties:
+        view:
+          type: object
+          properties:
+            cash: { type: integer }
+            naqd: { type: integer }
+            karta: { type: integer }
+            tax: { type: integer }
+            obligations: { type: integer }
+            reserve: { type: integer }
+            free: { type: integer }
+            profit: { type: integer }
+            profit_3m: { type: integer }
+            margin: { type: number }
+            owed_to_me: { type: integer }
+        upcoming: { type: array, items: { type: object } }
+        attention: { type: array, items: { type: object } }
+        forecast: { type: array, items: { type: object } }
+        month: { type: object }
+    ConsulReply:
+      type: object
+      properties:
+        chat_id: { type: string, format: uuid }
+        text: { type: string }
+        card: { type: object, nullable: true }
+        pending_op: { type: object, nullable: true }
+        fallback: { type: boolean }
+        verified: { type: boolean }
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200': { description: OK }
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe (Neon PG + Upstash Redis)
+      security: []
+      responses:
+        '200': { description: Ready }
+        '503': { description: Not ready }
+
+  # Block A: Auth & Profile
+  /auth/otp/send:
+    post:
+      tags: [Auth]
+      summary: Send 6-digit OTP to phone (rate limited 3 req / 10 min)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, example: "+998901234567" }
+      responses:
+        '204': { description: OTP sent }
+        '429': { description: Rate limited }
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and issue HttpOnly JWT cookies
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string }
+                code: { type: string, example: "123456" }
+      responses:
+        '200': { description: Authenticated user and is_new flag }
+        '401': { description: Invalid OTP }
+        '429': { description: Locked after 3 attempts }
+  /auth/demo:
+    post:
+      tags: [Auth]
+      summary: Reset Dilnoza demo account to reference metrics and log in (APP_ENV=demo only)
+      security: []
+      responses:
+        '200': { description: Demo user authenticated }
+        '403': { description: Disabled outside demo env }
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Legacy email/password registration
+      security: []
+      responses:
+        '201': { description: Registered }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Legacy email/password login
+      security: []
+      responses:
+        '200': { description: Logged in }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate refresh_token cookie (blacklists previous token in Upstash Redis)
+      responses:
+        '200': { description: Tokens refreshed }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Clear auth cookies and blacklist refresh token
+      responses:
+        '204': { description: Logged out }
+  /me:
+    get:
+      tags: [User]
+      summary: Get current user profile and business
+      responses:
+        '200': { description: User profile }
+    patch:
+      tags: [User]
+      summary: Update language and UI/voice preferences
+      responses:
+        '200': { description: Updated profile }
+    delete:
+      tags: [User]
+      summary: Full cascade deletion of account and all user data
+      responses:
+        '204': { description: Account deleted }
+  /me/business:
+    put:
+      tags: [User]
+      summary: Create or update business profile (tracks status changes)
+      responses:
+        '200': { description: Business updated }
+  /me/consent:
+    post:
+      tags: [User]
+      summary: Grant mandatory personal data consent
+      responses:
+        '200': { description: Consent recorded }
+    delete:
+      tags: [User]
+      summary: Revoke personal data consent
+      responses:
+        '200': { description: Consent revoked }
+  /me/consent/stats:
+    post:
+      tags: [User]
+      summary: Grant voluntary Chamber (Palata) anonymized statistics consent
+      responses:
+        '200': { description: Stats consent recorded }
+    delete:
+      tags: [User]
+      summary: Revoke voluntary statistics consent
+      responses:
+        '200': { description: Stats consent revoked }
+
+  # Block B: Ledger, Operations, Debtors, Obligations
+  /ledger/today:
+    get:
+      tags: [Ledger]
+      summary: Today dashboard view, upcoming obligations, attention alerts, 30-day forecast, month comparison
+      parameters:
+        - $ref: '#/components/parameters/LangParam'
+      responses:
+        '200':
+          description: Today ledger state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodayView'
+  /ops/parse:
+    post:
+      tags: [Ledger]
+      summary: Deterministic UZ/RU intent & operation parser (LLM fallback if unknown; never writes to DB)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, example: "bugun 1,2 mln sotdim" }
+      responses:
+        '200': { description: Parsed intent }
+  /ops:
+    get:
+      tags: [Ledger]
+      summary: List active operations with cursor pagination
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: kind
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200': { description: Paginated operations }
+    post:
+      tags: [Ledger]
+      summary: Create a new operation (supports Idempotency-Key)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201': { description: Operation created with free_before and free_after }
+  /ops/{id}:
+    delete:
+      tags: [Ledger]
+      summary: Soft-delete an operation and return recalculated today view
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Operation soft-deleted }
+        '404': { description: Not found }
+  /debtors:
+    get:
+      tags: [Ledger]
+      summary: List customers with outstanding nasiya balance > 0
+      responses:
+        '200': { description: Active debtors }
+  /debtors/{id}/repaid:
+    post:
+      tags: [Ledger]
+      summary: Record full or partial repayment from debtor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Repayment recorded }
+  /debtors/{id}/reminder:
+    get:
+      tags: [Ledger]
+      summary: Generate polite debt reminder text in user language (uz/ru)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Reminder message }
+  /obligations:
+    get:
+      tags: [Ledger]
+      summary: List recurring and one-time obligations
+      responses:
+        '200': { description: Obligations list }
+    post:
+      tags: [Ledger]
+      summary: Create an obligation
+      responses:
+        '201': { description: Created }
+  /obligations/{id}:
+    patch:
+      tags: [Ledger]
+      summary: Update an obligation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Ledger]
+      summary: Delete an obligation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Deleted }
+
+  # Block C: Calculators
+  /calculator/rules:
+    get:
+      tags: [Calculators]
+      summary: Uzbekistan 2026 tax rules, thresholds (100M, 1B, 12000 BRV) and official links
+      security: []
+      responses:
+        '200': { description: Tax rules JSON }
+  /calculator/calculate:
+    post:
+      tags: [Calculators]
+      summary: Loan calculator (annuity & differentiated)
+      security: []
+      responses:
+        '200': { description: Loan calculation result }
+  /calculator/tax:
+    post:
+      tags: [Calculators]
+      summary: Tax calculator comparing Uzbekistan 2026 tax regimes
+      security: []
+      responses:
+        '200': { description: Tax comparison result }
+  /calculator/breakeven:
+    post:
+      tags: [Calculators]
+      summary: Breakeven point, payback period and ROI
+      security: []
+      responses:
+        '200': { description: Breakeven result }
+  /calculator/history:
+    get:
+      tags: [Calculators]
+      summary: Authenticated user calculation history
+      responses:
+        '200': { description: History entries }
+
+  # Block D: Consul AI, Voice & Vision
+  /consul/ask:
+    post:
+      tags: [Consul AI]
+      summary: Ask Consul AI agent (supports Idempotency-Key and SSE Accept text/event-stream)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Grounded reply (JSON or text/event-stream)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsulReply'
+  /voice/stt:
+    post:
+      tags: [Voice & Vision]
+      summary: Speech-to-text via VoiceLab (multipart audio <= 2 MB, memory-only)
+      responses:
+        '200': { description: Transcribed text and detected language }
+  /voice/tts:
+    post:
+      tags: [Voice & Vision]
+      summary: Text-to-speech via VoiceLab with 24h Upstash Redis cache
+      responses:
+        '200':
+          description: MP3 audio stream
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+  /photo:
+    post:
+      tags: [Voice & Vision]
+      summary: Receipt/invoice photo recognition mapped to draft_ops[] (<= 10 MB)
+      responses:
+        '200': { description: Draft operations extracted from photo }
+
+  # Block E: Palata & P1 Reports
+  /palata/report:
+    get:
+      tags: [Palata]
+      summary: Anonymized Chamber report from palata_snapshots (k-anonymity n >= 5)
+      parameters:
+        - name: window
+          in: query
+          schema: { type: integer, enum: [30, 90], default: 30 }
+      responses:
+        '200': { description: Palata report }
+  /palata/report.csv:
+    get:
+      tags: [Palata]
+      summary: Palata report exported as UTF-8 BOM semicolon-delimited CSV
+      responses:
+        '200':
+          description: CSV export
+          content:
+            text/csv:
+              schema: { type: string }
+  /palata/survey:
+    post:
+      tags: [Palata]
+      summary: Record entrepreneur survey answer
+      responses:
+        '201': { description: Answer saved }
+  /chats:
+    get:
+      tags: [Reports & P1]
+      summary: List user chat threads
+      responses:
+        '200': { description: Chats list }
+  /chats/{id}/messages:
+    get:
+      tags: [Reports & P1]
+      summary: List messages in a chat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Messages list }
+  /reports/bank:
+    get:
+      tags: [Reports & P1]
+      summary: Monthly financial report for bank loan application
+      parameters:
+        - name: months
+          in: query
+          schema: { type: integer, default: 3, minimum: 1, maximum: 12 }
+      responses:
+        '200': { description: Bank report }
+  /forecast/whatif:
+    post:
+      tags: [Reports & P1]
+      summary: 30-day What-If cashflow simulation (buy | helper | loan)
+      responses:
+        '200': { description: Simulation result with cash gap detection }
+  /advisor/plan:
+    post:
+      tags: [Reports & P1]
+      summary: Business plan generator grounded in historical ledger costs
+      responses:
+        '201': { description: Generated business plan }
+  /memory:
+    get:
+      tags: [Reports & P1]
+      summary: List saved Consul memory facts
+      responses:
+        '200': { description: Memory facts }
+  /memory/{id}:
+    patch:
+      tags: [Reports & P1]
+      summary: Update a memory fact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Reports & P1]
+      summary: Delete a memory fact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Deleted }
+  /me/export.csv:
+    get:
+      tags: [Reports & P1]
+      summary: Export all user operations as UTF-8 BOM CSV
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string }
