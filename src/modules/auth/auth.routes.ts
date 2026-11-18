@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import { env } from '../../config/env.js';
 import { validateBody } from '../../middlewares/validate.js';
+import { seedDemoUser } from '../../scripts/seed-demo.js';
 import { Errors } from '../../utils/errors.js';
 import {
   loginSchema,
@@ -40,6 +42,23 @@ authRouter.post('/otp/verify', validateBody(otpVerifySchema), async (req, res, n
     res.json({
       user: serializeUser(user),
       is_new: isNew,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/demo', async (_req, res, next) => {
+  try {
+    if (env.APP_ENV !== 'demo') {
+      throw Errors.forbidden('demo_disabled', 'Demo login is only enabled when APP_ENV=demo');
+    }
+    const user = await seedDemoUser();
+    const { accessToken, refreshToken } = issueAuthTokens(user);
+    setAuthCookies(res, accessToken, refreshToken);
+    res.json({
+      user: serializeUser(user),
+      demo: true,
     });
   } catch (err) {
     next(err);
