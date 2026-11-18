@@ -155,7 +155,7 @@ class UpstashCacheClient implements CacheClient {
 }
 
 export const redis: CacheClient =
-  env.UPSTASH_REDIS_REST_URL === 'memory://upstash'
+  env.NODE_ENV === 'test' || env.UPSTASH_REDIS_REST_URL === 'memory://upstash'
     ? new MemoryCacheClient()
     : new UpstashCacheClient(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
 

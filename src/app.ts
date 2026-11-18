@@ -1,7 +1,13 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
-import helmet from 'helmet';
+import helmetModule, { type HelmetOptions } from 'helmet';
+
+type HelmetFn = (options?: Readonly<HelmetOptions>) => express.RequestHandler;
+const helmet: HelmetFn =
+  typeof helmetModule === 'function'
+    ? (helmetModule as unknown as HelmetFn)
+    : (helmetModule as unknown as { default: HelmetFn }).default;
 import { env } from './config/env.js';
 import { docsRouter } from './docs/swagger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
