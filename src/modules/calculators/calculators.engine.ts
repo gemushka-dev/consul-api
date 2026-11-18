@@ -3,7 +3,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rulesPath = path.resolve(__dirname, '../../../config/uz_tax_2026.json');
+const candidateRulePaths = [
+  path.join(process.cwd(), 'config/uz_tax_2026.json'),
+  path.resolve(__dirname, '../../../config/uz_tax_2026.json'),
+];
+const rulesPath = candidateRulePaths.find((p) => fs.existsSync(p));
 
 export interface TaxRulesConfig {
   year: number;
@@ -28,9 +32,33 @@ export interface TaxRulesConfig {
   sources: Array<{ title: string; url: string }>;
 }
 
-export const UZ_TAX_RULES: TaxRulesConfig = JSON.parse(
-  fs.readFileSync(rulesPath, 'utf-8'),
-) as TaxRulesConfig;
+export const UZ_TAX_RULES: TaxRulesConfig = rulesPath
+  ? (JSON.parse(fs.readFileSync(rulesPath, 'utf-8')) as TaxRulesConfig)
+  : {
+      year: 2026,
+      currency: 'UZS',
+      brv: 412000,
+      thresholds: {
+        self_employed_zero_annual: 100_000_000,
+        turnover_1pct_annual: 1_000_000_000,
+        vat_mandatory_brv: 12_000,
+        vat_mandatory_annual: 4_944_000_000,
+      },
+      rates: {
+        self_employed_under_100m: 0,
+        turnover_under_1b: 0.01,
+        turnover_over_1b: 0.04,
+        vat_reduced: 0.06,
+        vat_standard: 0.12,
+        profit_tax_standard: 0.15,
+        social_tax_yatt_monthly_brv: 1,
+      },
+      regimes: [],
+      sources: [
+        { title: 'Lex.uz', url: 'https://lex.uz/docs/4674902' },
+        { title: 'Soliq.uz', url: 'https://soliq.uz' },
+      ],
+    };
 
 export interface LoanInput {
   principal: number;

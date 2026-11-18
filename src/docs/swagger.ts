@@ -6,11 +6,16 @@ import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const localYaml = path.resolve(__dirname, 'openapi.yaml');
-const srcYaml = path.resolve(__dirname, '../../src/docs/openapi.yaml');
-const yamlPath = fs.existsSync(localYaml) ? localYaml : srcYaml;
+const candidatePaths = [
+  path.join(process.cwd(), 'src/docs/openapi.yaml'),
+  path.resolve(__dirname, 'openapi.yaml'),
+  path.resolve(__dirname, '../../src/docs/openapi.yaml'),
+];
+const yamlPath = candidatePaths.find((p) => fs.existsSync(p));
 
-const rawYaml = fs.readFileSync(yamlPath, 'utf-8');
+const rawYaml = yamlPath
+  ? fs.readFileSync(yamlPath, 'utf-8')
+  : 'openapi: 3.0.3\ninfo:\n  title: Consul API\n  version: 2.0.0\npaths: {}\n';
 const openapiDoc = YAML.parse(rawYaml) as Record<string, unknown>;
 
 export const docsRouter = Router();

@@ -4,6 +4,10 @@
   "description": "Consul backend API (TypeScript + Express + Vercel Neon + Upstash Redis)",
   "private": true,
   "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",

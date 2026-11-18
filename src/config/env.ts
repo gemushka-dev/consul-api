@@ -51,8 +51,31 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+function normalizeVercelEnv(raw: NodeJS.ProcessEnv): Record<string, string | undefined> {
+  const databaseUrl = raw.DATABASE_URL || raw.POSTGRES_URL;
+  const directUrl =
+    raw.DIRECT_URL ||
+    raw.DATABASE_URL_UNPOOLED ||
+    raw.POSTGRES_URL_NON_POOLING ||
+    databaseUrl;
+  const upstashUrl = raw.UPSTASH_REDIS_REST_URL || raw.KV_REST_API_URL;
+  const upstashToken = raw.UPSTASH_REDIS_REST_TOKEN || raw.KV_REST_API_TOKEN;
+  const frontendUrl =
+    raw.FRONTEND_URL ||
+    (raw.VERCEL_URL ? `https://${raw.VERCEL_URL}` : undefined);
+
+  return {
+    ...raw,
+    ...(databaseUrl ? { DATABASE_URL: databaseUrl } : {}),
+    ...(directUrl ? { DIRECT_URL: directUrl } : {}),
+    ...(upstashUrl ? { UPSTASH_REDIS_REST_URL: upstashUrl } : {}),
+    ...(upstashToken ? { UPSTASH_REDIS_REST_TOKEN: upstashToken } : {}),
+    ...(frontendUrl ? { FRONTEND_URL: frontendUrl } : {}),
+  };
+}
+
 function parseEnv(): Env {
-  const parsed = envSchema.safeParse(process.env);
+  const parsed = envSchema.safeParse(normalizeVercelEnv(process.env));
   if (!parsed.success) {
     const details = parsed.error.issues
       .map((i) => `${i.path.join('.')}: ${i.message}`)

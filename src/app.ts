@@ -38,9 +38,16 @@ export function createApp(): express.Express {
     }),
   );
 
+  const allowedOrigins = [
+    env.FRONTEND_URL,
+    'http://localhost:3000',
+    'http://localhost:5173',
+    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+  ];
+
   app.use(
     cors({
-      origin: [env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'],
+      origin: allowedOrigins,
       credentials: true,
     }),
   );
