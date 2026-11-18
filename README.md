@@ -13,7 +13,7 @@
   - Blacklist отозванных `refresh_token`
   - Кэш идемпотентности `Idempotency-Key` (`idem:${userId}:${key}`, TTL 24 ч)
   - Кэш TTS-аудио (`tts:${sha256}`, TTL 24 ч)
-- **AI & Media:** Moonshot **Kimi K3** (`https://api.moonshot.ai/v1`, OpenAI SDK, `AI_THINKING=enabled` с сохранением `reasoning_content` при multi-step tool calling + нативный vision), **ElevenLabs** STT (`scribe_v1`) и TTS (`eleven_flash_v2_5`) с 24ч кэшем в Upstash Redis, `multer` (`memoryStorage`)
+- **AI & Media:** **Kimi K3** (`https://llm.rustyraven.pw/v1`, OpenAI SDK, `AI_THINKING=enabled` с сохранением `reasoning_content` при multi-step tool calling + нативный vision), **ElevenLabs** STT (`scribe_v1`) и TTS (`eleven_flash_v2_5`) с 24ч кэшем в Upstash Redis, `multer` (`memoryStorage`)
 - **Docs:** OpenAPI 3.0.3 (`src/docs/openapi.yaml`) + Swagger UI на `/api/docs`
 
 ## Быстрый старт

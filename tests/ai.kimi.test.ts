@@ -9,8 +9,8 @@ import {
 import { env } from '../src/config/env.js';
 
 describe('Kimi K3 (Moonshot AI) Adapter & Defaults', () => {
-  it('defaults to Moonshot API base URL, kimi-k3, and thinking enabled', () => {
-    expect(env.AI_BASE_URL).toBe('https://api.moonshot.ai/v1');
+  it('defaults to llm.rustyraven.pw base URL, kimi-k3, and thinking enabled', () => {
+    expect(env.AI_BASE_URL).toBe('https://llm.rustyraven.pw/v1');
     expect(env.AI_MODEL).toBe('kimi-k3');
     expect(env.AI_VISION_MODEL).toBe('kimi-k3');
     expect(env.AI_THINKING).toBe('enabled');

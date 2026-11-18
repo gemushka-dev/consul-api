@@ -116,7 +116,7 @@ const envSchema = z.object({
   // AI (Kimi K3 / Moonshot OpenAI-compatible) & ElevenLabs (STT/TTS)
   AI_API_KEY: z.string().default(''),
   MOONSHOT_API_KEY: z.string().default(''),
-  AI_BASE_URL: z.string().url().default('https://api.moonshot.ai/v1'),
+  AI_BASE_URL: z.string().url().default('https://llm.rustyraven.pw/v1'),
   AI_MODEL: z.string().default('kimi-k3'),
   AI_VISION_MODEL: z.string().default('kimi-k3'),
   AI_THINKING: z.enum(['disabled', 'enabled', 'auto']).default('enabled'),
