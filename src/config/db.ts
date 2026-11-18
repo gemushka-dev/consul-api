@@ -1,22 +1,22 @@
 import { neon } from '@neondatabase/serverless';
 import { sql } from 'drizzle-orm';
 import { drizzle as drizzleNeon, type NeonHttpDatabase } from 'drizzle-orm/neon-http';
+import * as schema from '../db/schema.js';
 import { env } from './env.js';
 
-export type DbInstance = NeonHttpDatabase<Record<string, never>>;
+export type DbInstance = NeonHttpDatabase<typeof schema>;
 
 let _db: DbInstance | null = null;
 let _rawExec: ((query: string) => Promise<void>) | null = null;
 
 function createNeonDb(): DbInstance {
   const client = neon(env.DATABASE_URL);
-  return drizzleNeon({ client });
+  return drizzleNeon({ client, schema });
 }
 
 /**
  * Returns the active Drizzle database instance.
  * Uses @neondatabase/serverless (pooled DATABASE_URL) in normal environments.
- * In test mode with DATABASE_URL="pglite://memory", use initTestDb() before queries.
  */
 export function getDb(): DbInstance {
   if (!_db) {
