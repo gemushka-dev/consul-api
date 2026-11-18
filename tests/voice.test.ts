@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { env } from '../src/config/env.js';
 import { redis } from '../src/config/redis.js';
 import { numberToWords, prepareTtsText } from '../src/modules/voice/tts.formatter.js';
-import { synthesizeSpeech } from '../src/modules/voice/voice.service.js';
+import { clampElevenLabsSpeed, synthesizeSpeech } from '../src/modules/voice/voice.service.js';
 
-describe('VoiceLab TTS Formatter & Upstash Redis Caching', () => {
+describe('ElevenLabs TTS Formatter, Speed Clamping & Upstash Redis Caching', () => {
+  it('uses ElevenLabs defaults and clamps speed to [0.7, 1.2]', () => {
+    expect(env.ELEVENLABS_BASE_URL).toBe('https://api.elevenlabs.io/v1');
+    expect(env.ELEVENLABS_STT_MODEL).toBe('scribe_v1');
+    expect(env.ELEVENLABS_TTS_MODEL).toBe('eleven_flash_v2_5');
+    expect(clampElevenLabsSpeed(0.5)).toBe(0.7);
+    expect(clampElevenLabsSpeed(1.0)).toBe(1.0);
+    expect(clampElevenLabsSpeed(1.8)).toBe(1.2);
+  });
   it('strips markdown and converts monetary figures into UZ and RU words', () => {
     expect(numberToWords(4_200_000, 'uz')).toBe("to'rt million ikki yuz ming");
     expect(numberToWords(4_200_000, 'ru')).toBe('четыре миллиона двести тысяч');

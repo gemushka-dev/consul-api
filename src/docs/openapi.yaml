@@ -455,13 +455,13 @@ paths:
   /voice/stt:
     post:
       tags: [Voice & Vision]
-      summary: Speech-to-text via VoiceLab (multipart audio <= 2 MB, memory-only)
+      summary: Speech-to-text via ElevenLabs Scribe (multipart audio <= 2 MB, memory-only)
       responses:
         '200': { description: Transcribed text and detected language }
   /voice/tts:
     post:
       tags: [Voice & Vision]
-      summary: Text-to-speech via VoiceLab with 24h Upstash Redis cache
+      summary: Text-to-speech via ElevenLabs with 24h Upstash Redis cache
       responses:
         '200':
           description: MP3 audio stream

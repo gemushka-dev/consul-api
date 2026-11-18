@@ -35,6 +35,7 @@ const audioUpload = multer({
 const ttsSchema = z.object({
   text: z.string().trim().min(1, 'Text is required').max(2000),
   speed: z.number().min(0.5).max(2.0).default(1.0),
+  voice_id: z.string().trim().min(1).max(100).optional(),
 });
 
 export const voiceRouter = Router();
@@ -65,6 +66,7 @@ voiceRouter.post('/tts', validateBody(ttsSchema), async (req, res, next) => {
       text: req.body.text,
       speed: req.body.speed,
       lang: req.lang,
+      voiceId: req.body.voice_id,
     });
 
     res.setHeader('Content-Type', 'audio/mpeg');

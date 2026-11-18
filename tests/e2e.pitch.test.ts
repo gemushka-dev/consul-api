@@ -235,8 +235,8 @@ describe('E2E Smoke Suite: Full Pitch Demo Scenario & Secret Hygiene', () => {
     ];
 
     const secretPatterns: Array<{ name: string; regex: RegExp }> = [
-      { name: 'OpenAI/DeepSeek key', regex: /\bsk-[A-Za-z0-9]{20,}\b/ },
-      { name: 'VoiceLab key', regex: /\bvl-[A-Za-z0-9]{20,}\b/ },
+      { name: 'OpenAI/Moonshot key', regex: /\bsk-[A-Za-z0-9]{20,}\b/ },
+      { name: 'ElevenLabs key', regex: /\bsk_[a-f0-9]{32,}\b/ },
       { name: 'Upstash token', regex: /\bAX[A-Za-z0-9_-]{24,}\b/ },
       { name: 'Hardcoded Neon URL', regex: /postgresql:\/\/[^:\s]+:[^@\s]+@ep-[a-z0-9-]+/ },
     ];

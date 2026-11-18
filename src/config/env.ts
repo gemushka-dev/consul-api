@@ -68,8 +68,11 @@ function normalizeVercelEnv(raw: NodeJS.ProcessEnv): Record<string, string | und
     AI_THINKING: clean(raw.AI_THINKING),
     AI_TIMEOUT_MS: clean(raw.AI_TIMEOUT_MS),
     AI_DAILY_LIMIT: clean(raw.AI_DAILY_LIMIT),
-    VOICELAB_API_KEY: clean(raw.VOICELAB_API_KEY),
-    VOICELAB_BASE_URL: ensureUrl(raw.VOICELAB_BASE_URL),
+    ELEVENLABS_API_KEY: clean(raw.ELEVENLABS_API_KEY) || clean(raw.XI_API_KEY),
+    ELEVENLABS_BASE_URL: ensureUrl(raw.ELEVENLABS_BASE_URL),
+    ELEVENLABS_VOICE_ID: clean(raw.ELEVENLABS_VOICE_ID),
+    ELEVENLABS_TTS_MODEL: clean(raw.ELEVENLABS_TTS_MODEL),
+    ELEVENLABS_STT_MODEL: clean(raw.ELEVENLABS_STT_MODEL),
   };
 }
 
@@ -110,17 +113,20 @@ const envSchema = z.object({
       : z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 characters'),
   DEMO_OTP: z.string().regex(/^\d{6}$/, 'DEMO_OTP must be 6 digits').default('123456'),
 
-  // AI (Kimi K3 / Moonshot OpenAI-compatible) & VoiceLab
+  // AI (Kimi K3 / Moonshot OpenAI-compatible) & ElevenLabs (STT/TTS)
   AI_API_KEY: z.string().default(''),
   MOONSHOT_API_KEY: z.string().default(''),
   AI_BASE_URL: z.string().url().default('https://api.moonshot.ai/v1'),
   AI_MODEL: z.string().default('kimi-k3'),
   AI_VISION_MODEL: z.string().default('kimi-k3'),
-  AI_THINKING: z.enum(['disabled', 'enabled', 'auto']).default('disabled'),
-  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(8000),
+  AI_THINKING: z.enum(['disabled', 'enabled', 'auto']).default('enabled'),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(20000),
   AI_DAILY_LIMIT: z.coerce.number().int().positive().default(50),
-  VOICELAB_API_KEY: z.string().default(''),
-  VOICELAB_BASE_URL: z.string().url().default('https://api.voicelab.uz/v1'),
+  ELEVENLABS_API_KEY: z.string().default(''),
+  ELEVENLABS_BASE_URL: z.string().url().default('https://api.elevenlabs.io/v1'),
+  ELEVENLABS_VOICE_ID: z.string().default('EXAVITQu4vr4xnSDxMaL'),
+  ELEVENLABS_TTS_MODEL: z.string().default('eleven_flash_v2_5'),
+  ELEVENLABS_STT_MODEL: z.string().default('scribe_v1'),
 });
 
 export type Env = z.infer<typeof envSchema>;
