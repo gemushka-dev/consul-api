@@ -8,6 +8,11 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import { langMiddleware } from './middlewares/lang.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { calculatorRouter } from './modules/calculators/calculators.routes.js';
+import {
+  debtorsRouter,
+  ledgerRouter,
+  obligationsRouter,
+} from './modules/ledger/ledger.routes.js';
 import { opsRouter } from './modules/ledger/ops.routes.js';
 import { userRouter } from './modules/user/user.routes.js';
 import { healthRouter } from './routes/health.js';
@@ -49,7 +54,10 @@ export function createApp(): express.Express {
   apiV1.use(healthRouter);
   apiV1.use('/auth', authRouter);
   apiV1.use('/me', userRouter);
+  apiV1.use('/ledger', ledgerRouter);
   apiV1.use('/ops', opsRouter);
+  apiV1.use('/debtors', debtorsRouter);
+  apiV1.use('/obligations', obligationsRouter);
   apiV1.use('/calculator', calculatorRouter);
 
   app.use('/api/docs', docsRouter);
